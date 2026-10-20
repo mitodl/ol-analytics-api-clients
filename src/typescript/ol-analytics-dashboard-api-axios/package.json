@@ -1,6 +1,6 @@
 {
   "name": "@mitodl/ol-analytics-dashboard-api-axios",
-  "version": "2026.10.20",
+  "version": "2026.10.20-1",
   "description": "Client for the B2B dashboard API of ol-analytics-api",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
