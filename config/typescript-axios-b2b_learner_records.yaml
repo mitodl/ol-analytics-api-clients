@@ -1,0 +1,11 @@
+generatorName: typescript-axios
+outputDir: ol-analytics-api-clients/src/typescript/ol-analytics-learner-records-api-axios/src
+inputSpec: ol-analytics-api/openapi/specs/b2b_learner_records.yaml
+ignoreFileOverride: ol-analytics-api-clients/.openapi-generator-ignore
+additionalProperties:
+  paramNaming: original
+  useSingleRequestParameter: true
+  supportsES6: false
+globalProperties:
+  apiDocs: "false"
+  modelDocs: "false"

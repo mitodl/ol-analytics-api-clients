@@ -1,0 +1,46 @@
+name: CI - Axios TypeScript Packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/typescript/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/typescript/**"
+
+jobs:
+  test-axios-package:
+    name: Test ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - ol-analytics-dashboard-api-axios
+          - ol-analytics-learner-records-api-axios
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        working-directory: src/typescript/${{ matrix.package }}
+        run: yarn install --immutable
+
+      - name: Run pack dry-run
+        working-directory: src/typescript/${{ matrix.package }}
+        run: yarn pack --dry-run
