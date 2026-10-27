@@ -89,7 +89,7 @@ export type ConsentStatus = typeof ConsentStatus[keyof typeof ConsentStatus];
 
 
 /**
- * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / total_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``total_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.
+ * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / total_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``newly_certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``total_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.
  */
 export interface ContentEngagementDepth {
     /**
@@ -109,11 +109,11 @@ export interface ContentEngagementDepth {
      */
     'courserun_title': string;
     /**
-     * Learners who have ever enrolled in this course run. When too few learners are in the group, the whole row is withheld to avoid identifying them.
+     * Learners whose enrollment in this course run is still active. When too few learners are in the group, the whole row is withheld to avoid identifying them.
      */
     'total_enrolled_learners': number;
     /**
-     * Enrolled learners who did anything in the course: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Withheld when too few learners are in the group to report without identifying them.
+     * Learners whose enrollment in this course run is still active and who did anything in the course: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Withheld when too few learners are in the group to report without identifying them.
      */
     'engaged_learners': number | null;
     /**
@@ -121,11 +121,11 @@ export interface ContentEngagementDepth {
      */
     'engagement_rate_pct': number | null;
     /**
-     * Videos watched in this course run, counting every view. Withheld when the learner count it is based on is withheld.
+     * Videos watched in this course run. A video counts once for each day a learner plays it, so replaying it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_videos_watched': number | null;
     /**
-     * Learners who watched at least one video in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who watched at least one video in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'video_watchers': number | null;
     /**
@@ -133,15 +133,15 @@ export interface ContentEngagementDepth {
      */
     'avg_videos_per_engaged_learner': number | null;
     /**
-     * Problem attempts in this course run, counting every attempt. Withheld when the learner count it is based on is withheld.
+     * Problems attempted in this course run. A problem counts once for each day a learner submits an answer to it, so resubmitting it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_problems_attempted': number | null;
     /**
-     * Learners who attempted at least one problem in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who attempted at least one problem in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'problem_attempters': number | null;
     /**
-     * Average problem attempts per learner who did anything in the course. Withheld when the learner count it is based on is withheld.
+     * Average problems attempted per learner who did anything in the course. Withheld when the learner count it is based on is withheld.
      */
     'avg_problems_per_engaged_learner': number | null;
     /**
@@ -149,7 +149,7 @@ export interface ContentEngagementDepth {
      */
     'total_chatbot_interactions': number | null;
     /**
-     * Learners who used the chatbot in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who used the chatbot in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'chatbot_users': number | null;
     /**
@@ -182,11 +182,11 @@ export interface ContractContentEngagementDepth {
      */
     'courserun_title': string;
     /**
-     * Learners who have ever enrolled in this course run. When too few learners are in the group, the whole row is withheld to avoid identifying them.
+     * Learners whose enrollment in this course run is still active. When too few learners are in the group, the whole row is withheld to avoid identifying them.
      */
     'total_enrolled_learners': number;
     /**
-     * Enrolled learners who did anything in the course: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Withheld when too few learners are in the group to report without identifying them.
+     * Learners whose enrollment in this course run is still active and who did anything in the course: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Withheld when too few learners are in the group to report without identifying them.
      */
     'engaged_learners': number | null;
     /**
@@ -194,11 +194,11 @@ export interface ContractContentEngagementDepth {
      */
     'engagement_rate_pct': number | null;
     /**
-     * Videos watched in this course run, counting every view. Withheld when the learner count it is based on is withheld.
+     * Videos watched in this course run. A video counts once for each day a learner plays it, so replaying it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_videos_watched': number | null;
     /**
-     * Learners who watched at least one video in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who watched at least one video in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'video_watchers': number | null;
     /**
@@ -206,15 +206,15 @@ export interface ContractContentEngagementDepth {
      */
     'avg_videos_per_engaged_learner': number | null;
     /**
-     * Problem attempts in this course run, counting every attempt. Withheld when the learner count it is based on is withheld.
+     * Problems attempted in this course run. A problem counts once for each day a learner submits an answer to it, so resubmitting it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_problems_attempted': number | null;
     /**
-     * Learners who attempted at least one problem in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who attempted at least one problem in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'problem_attempters': number | null;
     /**
-     * Average problem attempts per learner who did anything in the course. Withheld when the learner count it is based on is withheld.
+     * Average problems attempted per learner who did anything in the course. Withheld when the learner count it is based on is withheld.
      */
     'avg_problems_per_engaged_learner': number | null;
     /**
@@ -222,7 +222,7 @@ export interface ContractContentEngagementDepth {
      */
     'total_chatbot_interactions': number | null;
     /**
-     * Learners who used the chatbot in this course run. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who used the chatbot in this course run. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'chatbot_users': number | null;
     /**
@@ -263,15 +263,15 @@ export interface ContractMonthlyEngagementTrend {
      */
     'activity_year_and_month': string;
     /**
-     * Learners who did course work this month: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Enrolling or earning a certificate alone doesn\'t count. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who did course work this month: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Only activity in an enrollment that is still active counts. Enrolling or earning a certificate alone doesn\'t count. Withheld when too few learners are in the group to report without identifying them.
      */
     'monthly_active_learners': number | null;
     /**
-     * Course enrollments made this month. A learner who enrolled in six courses counts six times. Withheld when the learner count it is based on is withheld.
+     * Course enrollments made this month that are still active. A learner who enrolled in six courses counts six times. Withheld when the learner count it is based on is withheld.
      */
     'new_enrollments': number | null;
     /**
-     * Learners who enrolled in at least one course this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners with at least one course enrollment made this month that is still active. Withheld when too few learners are in the group to report without identifying them.
      */
     'enrolling_learners': number | null;
     /**
@@ -281,21 +281,25 @@ export interface ContractMonthlyEngagementTrend {
     /**
      * Learners who earned at least one certificate this month. Withheld when too few learners are in the group to report without identifying them.
      */
+    'newly_certified_learners': number | null;
+    /**
+     * Deprecated: use newly_certified_learners, which this always equals.
+     */
     'certified_learners': number | null;
     /**
-     * Videos watched this month, counting every view. Withheld when the learner count it is based on is withheld.
+     * Videos watched this month. A video counts once for each day a learner plays it, so replaying it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_videos_watched': number | null;
     /**
-     * Learners who watched at least one video this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who watched at least one video this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'video_watchers': number | null;
     /**
-     * Problem attempts this month, counting every attempt. Withheld when the learner count it is based on is withheld.
+     * Problems attempted this month. A problem counts once for each day a learner submits an answer to it, so resubmitting it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_problems_attempted': number | null;
     /**
-     * Learners who attempted at least one problem this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who attempted at least one problem this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'problem_attempters': number | null;
     /**
@@ -303,7 +307,7 @@ export interface ContractMonthlyEngagementTrend {
      */
     'total_chatbot_interactions': number | null;
     /**
-     * Learners who used the chatbot this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who used the chatbot this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'chatbot_users': number | null;
     /**
@@ -832,7 +836,7 @@ export interface MitAdminContractHealth {
     'health_status': string;
 }
 /**
- * mv_b2b_monthly_engagement_trend — grain: org x year_month.  Every aggregate here is floored through the cohort that contributes to it, which the view publishes alongside it (ol-data-platform PR #2520).  ``contributing_learners`` is the primary cohort and gates the row. It counts every learner behind the month: active, enrolling or certified (ol-data-platform PR #2881). Every other learner count in the row is a subset of it. It is selected for the gate and excluded from the response.  ``monthly_active_learners`` is not the gate, because activity is course work only. Enrolling or being issued a certificate does not make a learner active, so ``enrolling_learners`` and ``certified_learners`` are not subsets of it, and a month can have enough of either with too few active learners. Gating on it would withhold those figures for no privacy reason. It is a secondary count, nulled on its own terms.  The active, enrolling and certified counts are ``uncontained``. None of them sits inside another, and their one container, the primary, is never returned, so a caller has nothing to subtract them from and the complement rule would suppress on a number nobody can see.  No total is attributable to the primary. Each is a SUM contributed by only the learners who did that specific thing, and clearing the primary floor says nothing about whether that narrower cohort cleared it. A month with 40 contributing learners can carry a chatbot total from exactly one of them, which is why each total is ``derived`` from its own cohort.  ``new_enrollments`` and ``certificates_earned`` are SUMs of per-learner-per-course-run markers, so they count *events*, not learners: one learner enrolling in six runs reads as ``new_enrollments == 6`` and would clear a floor of 5 on its own. Flooring them directly is therefore the wrong instrument — they are ``derived`` from ``enrolling_learners`` and ``certified_learners``, the distinct-learner counts they are actually attributable to, which do carry the floor.  ``contributing_learners`` is Optional even though it is the primary — everywhere else the primary gates the row (below floor, the row is dropped whole, never nulled) rather than being nulled itself. The org grain is the exception: every cohort column is this endpoint\'s ``_FinerGrain.guarded_cohorts`` target, so a month whose contract-level breakdown hides anything gets its org-level learner counts blanked post hoc, after its own row gate already passed. See ``routers.organizations`` and ``ContractMonthlyEngagementTrend``.
+ * mv_b2b_monthly_engagement_trend — grain: org x year_month.  Every aggregate here is floored through the cohort that contributes to it, which the view publishes alongside it (ol-data-platform PR #2520).  ``contributing_learners`` is the primary cohort and gates the row. It counts every learner behind the month: active, enrolling or certified (ol-data-platform PR #2881). Every other learner count in the row is a subset of it. It is selected for the gate and excluded from the response.  ``monthly_active_learners`` is not the gate, because activity is course work only. Enrolling or being issued a certificate does not make a learner active, so ``enrolling_learners`` and ``newly_certified_learners`` are not subsets of it, and a month can have enough of either with too few active learners. Gating on it would withhold those figures for no privacy reason. It is a secondary count, nulled on its own terms.  The active, enrolling and certified counts are ``uncontained``. None of them sits inside another, and their one container, the primary, is never returned, so a caller has nothing to subtract them from and the complement rule would suppress on a number nobody can see.  No total is attributable to the primary. Each is a SUM contributed by only the learners who did that specific thing, and clearing the primary floor says nothing about whether that narrower cohort cleared it. A month with 40 contributing learners can carry a chatbot total from exactly one of them, which is why each total is ``derived`` from its own cohort.  ``new_enrollments`` and ``certificates_earned`` are SUMs of per-learner-per-course-run markers, so they count *events*, not learners: one learner enrolling in six runs reads as ``new_enrollments == 6`` and would clear a floor of 5 on its own. Flooring them directly is therefore the wrong instrument — they are ``derived`` from ``enrolling_learners`` and ``newly_certified_learners``, the distinct-learner counts they are actually attributable to, which do carry the floor.  ``contributing_learners`` is Optional even though it is the primary — everywhere else the primary gates the row (below floor, the row is dropped whole, never nulled) rather than being nulled itself. The org grain is the exception: every cohort column is this endpoint\'s ``_FinerGrain.guarded_cohorts`` target, so a month whose contract-level breakdown hides anything gets its org-level learner counts blanked post hoc, after its own row gate already passed. See ``routers.organizations`` and ``ContractMonthlyEngagementTrend``.  ``certified_learners`` is the deprecated name for ``newly_certified_learners``: always equal to it and floored the same way, kept until clients read the new name. Every other dashboard endpoint uses ``certified_learners`` for learners holding an unrevoked certificate, not for the month\'s newly certified ones.
  */
 export interface MonthlyEngagementTrend {
     /**
@@ -848,15 +852,15 @@ export interface MonthlyEngagementTrend {
      */
     'activity_year_and_month': string;
     /**
-     * Learners who did course work this month: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Enrolling or earning a certificate alone doesn\'t count. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who did course work this month: watched a video, attempted a problem, posted in a discussion, used the chatbot or moved through course pages. Only activity in an enrollment that is still active counts. Enrolling or earning a certificate alone doesn\'t count. Withheld when too few learners are in the group to report without identifying them.
      */
     'monthly_active_learners': number | null;
     /**
-     * Course enrollments made this month. A learner who enrolled in six courses counts six times. Withheld when the learner count it is based on is withheld.
+     * Course enrollments made this month that are still active. A learner who enrolled in six courses counts six times. Withheld when the learner count it is based on is withheld.
      */
     'new_enrollments': number | null;
     /**
-     * Learners who enrolled in at least one course this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners with at least one course enrollment made this month that is still active. Withheld when too few learners are in the group to report without identifying them.
      */
     'enrolling_learners': number | null;
     /**
@@ -866,21 +870,25 @@ export interface MonthlyEngagementTrend {
     /**
      * Learners who earned at least one certificate this month. Withheld when too few learners are in the group to report without identifying them.
      */
+    'newly_certified_learners': number | null;
+    /**
+     * Deprecated: use newly_certified_learners, which this always equals.
+     */
     'certified_learners': number | null;
     /**
-     * Videos watched this month, counting every view. Withheld when the learner count it is based on is withheld.
+     * Videos watched this month. A video counts once for each day a learner plays it, so replaying it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_videos_watched': number | null;
     /**
-     * Learners who watched at least one video this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who watched at least one video this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'video_watchers': number | null;
     /**
-     * Problem attempts this month, counting every attempt. Withheld when the learner count it is based on is withheld.
+     * Problems attempted this month. A problem counts once for each day a learner submits an answer to it, so resubmitting it the same day doesn\'t add to the total. Withheld when the learner count it is based on is withheld.
      */
     'total_problems_attempted': number | null;
     /**
-     * Learners who attempted at least one problem this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who attempted at least one problem this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'problem_attempters': number | null;
     /**
@@ -888,7 +896,7 @@ export interface MonthlyEngagementTrend {
      */
     'total_chatbot_interactions': number | null;
     /**
-     * Learners who used the chatbot this month. Withheld when too few learners are in the group to report without identifying them.
+     * Learners who used the chatbot this month. Only activity in an enrollment that is still active counts. Withheld when too few learners are in the group to report without identifying them.
      */
     'chatbot_users': number | null;
 }
