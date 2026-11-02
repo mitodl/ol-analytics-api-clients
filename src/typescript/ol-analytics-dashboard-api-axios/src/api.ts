@@ -592,6 +592,22 @@ export interface LearnerEnrollment {
      */
     'last_active_on': string | null;
     /**
+     * How many different days the learner did anything in the course. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'days_active': number | null;
+    /**
+     * How many videos the learner played, counted once per day, so a video played on two different days counts twice. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'videos_watched': number | null;
+    /**
+     * How many problems the learner submitted an answer to, counted once per day, so a problem attempted on two different days counts twice. Viewing the answer isn\'t an attempt. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'problems_attempted': number | null;
+    /**
+     * How many times the learner sent the course\'s chatbot a message, counting each conversation at each place in the course once per day. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'chatbot_interactions': number | null;
+    /**
      * Whether this learner may need a nudge: they never started the course, or they are still working through it and their last recorded activity was at least 30 days ago. False while they are passing or hold an unrevoked certificate, since going quiet after finishing is expected. Hidden if the learner hasn\'t agreed to share their progress.
      */
     'needs_attention': boolean | null;
@@ -682,6 +698,22 @@ export interface LearnerProgress {
      * The last day the learner did anything in the course. Empty if they haven\'t yet. Hidden if the learner hasn\'t agreed to share their progress.
      */
     'last_active_on': string | null;
+    /**
+     * How many different days the learner did anything in the course. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'days_active': number | null;
+    /**
+     * How many videos the learner played, counted once per day, so a video played on two different days counts twice. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'videos_watched': number | null;
+    /**
+     * How many problems the learner submitted an answer to, counted once per day, so a problem attempted on two different days counts twice. Viewing the answer isn\'t an attempt. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'problems_attempted': number | null;
+    /**
+     * How many times the learner sent the course\'s chatbot a message, counting each conversation at each place in the course once per day. Hidden if the learner hasn\'t agreed to share their progress.
+     */
+    'chatbot_interactions': number | null;
     /**
      * Whether this learner may need a nudge: they never started the course, or they are still working through it and their last recorded activity was at least 30 days ago. False while they are passing or hold an unrevoked certificate, since going quiet after finishing is expected. Hidden if the learner hasn\'t agreed to share their progress.
      */
