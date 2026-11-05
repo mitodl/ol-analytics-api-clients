@@ -115,10 +115,224 @@ export interface CourseRun {
      */
     'courserun_end_on': string | null;
 }
+export interface DataInner {
+    /**
+     * Always true. Returned only with updated_since, for a record the previous sync could have held. Drop the record it names.
+     */
+    'removed': DataInnerRemovedEnum;
+    /**
+     * The learner_id of the removed record.
+     */
+    'learner_id': string;
+    /**
+     * Not a join key; may differ from the enrolling address.
+     */
+    'email': string | null;
+    /**
+     * Often null.
+     */
+    'full_name': string | null;
+    /**
+     * The organization\'s Keycloak organization UUID.
+     */
+    'organization_id': string;
+    /**
+     * Numeric identifier of the B2B contract the enrollment was attributed to.
+     */
+    'contract_id': number;
+    /**
+     * Name of the B2B contract.
+     */
+    'contract_name': string;
+    /**
+     * Readable course-run identifier.
+     */
+    'courserun_id': string;
+    /**
+     * Mutable display title — key on courserun_id.
+     */
+    'courserun_title': string;
+    /**
+     * Start date/time of the course run, or null if unscheduled.
+     */
+    'courserun_start_on': string | null;
+    /**
+     * Null for self-paced runs.
+     */
+    'courserun_end_on': string | null;
+    /**
+     * This run\'s enrollment, not an earlier run of the same course. Not consent-gated.
+     */
+    'enrolled_on': string;
+    /**
+     * Not consent-gated.
+     */
+    'enrollment_is_active': boolean;
+    /**
+     * e.g. `verified`, `audit`. Determines whether the run is certificate-bearing.
+     */
+    'enrollment_mode': string | null;
+    /**
+     * Deactivation reason where one was recorded.
+     */
+    'enrollment_status': string | null;
+    /**
+     * The learner\'s recorded decision for this enrollment\'s contract, before the deployment\'s default: not_recorded is a learner who has not answered, declined one who answered no or withdrew. Not consent-gated.
+     */
+    'outcomes_consent_status': ConsentStatus;
+    /**
+     * Whether the learner\'s course status is shared for this enrollment\'s contract. A recorded consent decision always decides it; with none recorded, the deployment\'s default does. False means every field below is null.
+     */
+    'outcomes_shared': boolean;
+    /**
+     * Single derived answer per row. Null when outcomes are withheld. in_progress means not passed or certified, with a nonzero grade or any tracked activity in the run; not_started means neither.
+     */
+    'completion_status': CompletionStatus | null;
+    /**
+     * Null where no grade has been computed.
+     */
+    'is_passing': boolean | null;
+    /**
+     * Numeric grade between 0 and 1.
+     */
+    'grade': number | null;
+    /**
+     * Frequently null — not every platform records one.
+     */
+    'letter_grade': string | null;
+    /**
+     * Share of the run\'s current course content the learner has completed, between 0 and 1. Times 100 it is the completion percent on the course\'s progress page. Not an input to completion_status: a certified learner can be below 1. Null where the run has no content to count.
+     */
+    'content_progress': number | null;
+    /**
+     * Timestamp the certificate was issued, or null if none exists.
+     */
+    'certificate_issued_on': string | null;
+    /**
+     * Null where no certificate exists. A revoked certificate doesn\'t count as certified: completion_status then follows the grade, so it can read passed, in_progress or not_started.
+     */
+    'certificate_is_revoked': boolean | null;
+    /**
+     * Most recent day with tracked activity in this course run. A date in the course platform\'s local day, not a UTC day. Null with no activity.
+     */
+    'last_active_on': string | null;
+    /**
+     * Distinct days with tracked activity in this course run.
+     */
+    'days_active': number | null;
+    /**
+     * Video blocks played, counted once per day: a block played on two days counts twice.
+     */
+    'videos_watched': number | null;
+    /**
+     * Problem blocks checked, counted once per day: a block attempted on two days counts twice. Viewing an answer is not an attempt.
+     */
+    'problems_attempted': number | null;
+    /**
+     * Chatbot submits in this course run, counting each (session, block) once per day.
+     */
+    'chatbot_interactions': number | null;
+}
+
+export const DataInnerRemovedEnum = {
+    True: true,
+} as const;
+
+export type DataInnerRemovedEnum = typeof DataInnerRemovedEnum[keyof typeof DataInnerRemovedEnum];
+
+export interface DataInner1 {
+    /**
+     * Always true. Returned only with updated_since, for a record the previous sync could have held. Drop the record it names.
+     */
+    'removed': DataInner1RemovedEnum;
+    /**
+     * The learner_id of the removed record.
+     */
+    'learner_id': string;
+    /**
+     * Not a join key; may differ from the enrolling address.
+     */
+    'email': string | null;
+    /**
+     * Often null.
+     */
+    'full_name': string | null;
+    /**
+     * The organization\'s Keycloak organization UUID.
+     */
+    'organization_id': string;
+    /**
+     * Display name of the organization.
+     */
+    'organization_name': string;
+    /**
+     * How the learner is associated with the organization; see MembershipSource for the individual values.
+     */
+    'membership_source': MembershipSource;
+    /**
+     * Administers the organization in MITx Online.
+     */
+    'is_organization_manager': boolean;
+    /**
+     * Null for a roster member with no enrollments.
+     */
+    'first_enrolled_on': string | null;
+    /**
+     * Timestamp of the learner\'s most recent enrollment.
+     */
+    'last_enrolled_on': string | null;
+    /**
+     * Distinct course runs under the organization\'s contracts. Not consent-gated.
+     */
+    'courses_enrolled': number;
+    /**
+     * The learner\'s recorded decision, before the deployment\'s default: not_recorded is a learner who has not answered, declined one who answered no or withdrew. Across several contracts any decline reads declined, then any contract with no decision reads not_recorded. Not consent-gated.
+     */
+    'outcomes_consent_status': ConsentStatus;
+    /**
+     * Whether this learner\'s course status is shared. A recorded consent decision always decides it; with none recorded, the deployment\'s default does. False means every field below is null.
+     */
+    'outcomes_shared': boolean;
+    /**
+     * When consent was recorded. Null when outcomes_shared is false, and when it is true with no recorded decision.
+     */
+    'outcomes_consent_on': string | null;
+    /**
+     * Most recent day with tracked course activity (video play, problem check, navigation, discussion or chatbot submit) across the enrollments the request covers: active ones only, unless include_inactive is set. A date in the course platform\'s local day, not a UTC day. Null with no activity.
+     */
+    'last_active_on': string | null;
+    /**
+     * Distinct course runs whose completion_status is in_progress: not passed or certified, with a nonzero grade or any tracked activity. Active enrollments only, unless include_inactive is set.
+     */
+    'courses_in_progress': number | null;
+    /**
+     * Distinct course runs where the learner has a passing grade.
+     */
+    'courses_passed': number | null;
+    /**
+     * Distinct course runs where the learner holds a non-revoked certificate.
+     */
+    'courses_certified': number | null;
+    /**
+     * Includes program certificates, which have no course run and so are not in courses_certified.
+     */
+    'certificates_earned': number | null;
+}
+
+export const DataInner1RemovedEnum = {
+    True: true,
+} as const;
+
+export type DataInner1RemovedEnum = typeof DataInner1RemovedEnum[keyof typeof DataInner1RemovedEnum];
+
 /**
  * One learner\'s enrollment in one course run under one contract.
  */
 export interface Enrollment {
+    /**
+     * Always false on a full record; see RemovedLearner and RemovedEnrollment.
+     */
+    'removed': EnrollmentRemovedEnum;
     /**
      * Stable opaque identifier, consistent across endpoints and stable across email changes. Use as the join key.
      */
@@ -200,7 +414,7 @@ export interface Enrollment {
      */
     'letter_grade': string | null;
     /**
-     * Share of the run\'s current course content the learner has completed, between 0 and 1. Times 100 it is the completion percent on the course\'s progress page. Not an input to completion_status: a certified learner can be below 1. Null where the run has no content to count. Changes to it do not move updated_since.
+     * Share of the run\'s current course content the learner has completed, between 0 and 1. Times 100 it is the completion percent on the course\'s progress page. Not an input to completion_status: a certified learner can be below 1. Null where the run has no content to count.
      */
     'content_progress': number | null;
     /**
@@ -212,27 +426,32 @@ export interface Enrollment {
      */
     'certificate_is_revoked': boolean | null;
     /**
-     * Most recent day with tracked activity in this course run. A date in the course platform\'s local day, not a UTC day. Null with no activity. Changes to it do not move updated_since; a full reload picks them up.
+     * Most recent day with tracked activity in this course run. A date in the course platform\'s local day, not a UTC day. Null with no activity.
      */
     'last_active_on': string | null;
     /**
-     * Distinct days with tracked activity in this course run. Changes to it do not move updated_since; a full reload picks them up.
+     * Distinct days with tracked activity in this course run.
      */
     'days_active': number | null;
     /**
-     * Video blocks played, counted once per day: a block played on two days counts twice. Changes to it do not move updated_since; a full reload picks them up.
+     * Video blocks played, counted once per day: a block played on two days counts twice.
      */
     'videos_watched': number | null;
     /**
-     * Problem blocks checked, counted once per day: a block attempted on two days counts twice. Viewing an answer is not an attempt. Changes to it do not move updated_since; a full reload picks them up.
+     * Problem blocks checked, counted once per day: a block attempted on two days counts twice. Viewing an answer is not an attempt.
      */
     'problems_attempted': number | null;
     /**
-     * Chatbot submits in this course run, counting each (session, block) once per day. Changes to it do not move updated_since; a full reload picks them up.
+     * Chatbot submits in this course run, counting each (session, block) once per day.
      */
     'chatbot_interactions': number | null;
 }
 
+export const EnrollmentRemovedEnum = {
+    False: false,
+} as const;
+
+export type EnrollmentRemovedEnum = typeof EnrollmentRemovedEnum[keyof typeof EnrollmentRemovedEnum];
 
 export interface HTTPValidationError {
     'detail'?: Array<ValidationError>;
@@ -241,6 +460,10 @@ export interface HTTPValidationError {
  * One learner\'s association with the organization.
  */
 export interface Learner {
+    /**
+     * Always false on a full record; see RemovedLearner and RemovedEnrollment.
+     */
+    'removed': LearnerRemovedEnum;
     /**
      * Stable opaque identifier, consistent across endpoints and stable across email changes. Use as the join key.
      */
@@ -294,11 +517,11 @@ export interface Learner {
      */
     'outcomes_consent_on': string | null;
     /**
-     * Most recent day with tracked course activity (video play, problem check, navigation, discussion or chatbot submit) across the enrollments the request covers: active ones only, unless include_inactive is set. A date in the course platform\'s local day, not a UTC day. Null with no activity. Changes to it do not move updated_since; a full reload picks them up.
+     * Most recent day with tracked course activity (video play, problem check, navigation, discussion or chatbot submit) across the enrollments the request covers: active ones only, unless include_inactive is set. A date in the course platform\'s local day, not a UTC day. Null with no activity.
      */
     'last_active_on': string | null;
     /**
-     * Distinct course runs whose completion_status is in_progress: not passed or certified, with a nonzero grade or any tracked activity. Active enrollments only, unless include_inactive is set. Changes to it do not move updated_since; a full reload picks them up.
+     * Distinct course runs whose completion_status is in_progress: not passed or certified, with a nonzero grade or any tracked activity. Active enrollments only, unless include_inactive is set.
      */
     'courses_in_progress': number | null;
     /**
@@ -315,6 +538,11 @@ export interface Learner {
     'certificates_earned': number | null;
 }
 
+export const LearnerRemovedEnum = {
+    False: false,
+} as const;
+
+export type LearnerRemovedEnum = typeof LearnerRemovedEnum[keyof typeof LearnerRemovedEnum];
 
 export interface LearnerRecordsResponseCourseRun {
     /**
@@ -338,7 +566,7 @@ export interface LearnerRecordsResponseCourseRun {
      */
     'data': Array<CourseRun>;
 }
-export interface LearnerRecordsResponseEnrollment {
+export interface LearnerRecordsResponseUnionEnrollmentRemovedEnrollment {
     /**
      * The organization\'s Keycloak organization UUID.
      */
@@ -358,9 +586,9 @@ export interface LearnerRecordsResponseEnrollment {
     /**
      * The requested page of records.
      */
-    'data': Array<Enrollment>;
+    'data': Array<DataInner>;
 }
-export interface LearnerRecordsResponseLearner {
+export interface LearnerRecordsResponseUnionLearnerRemovedLearner {
     /**
      * The organization\'s Keycloak organization UUID.
      */
@@ -380,7 +608,7 @@ export interface LearnerRecordsResponseLearner {
     /**
      * The requested page of records.
      */
-    'data': Array<Learner>;
+    'data': Array<DataInner1>;
 }
 export interface LocationInner {
 }
@@ -396,6 +624,62 @@ export const MembershipSource = {
 
 export type MembershipSource = typeof MembershipSource[keyof typeof MembershipSource];
 
+
+/**
+ * An enrollment that no longer exists. A deactivated enrollment is not removed: it reads enrollment_is_active false, under include_inactive. Only the identity remains.
+ */
+export interface RemovedEnrollment {
+    /**
+     * The learner_id of the removed record.
+     */
+    'learner_id': string;
+    /**
+     * The organization\'s Keycloak organization UUID.
+     */
+    'organization_id': string;
+    /**
+     * Numeric identifier of the B2B contract the enrollment was attributed to.
+     */
+    'contract_id': number;
+    /**
+     * Readable course-run identifier.
+     */
+    'courserun_id': string;
+    /**
+     * Always true. Returned only with updated_since, for a record the previous sync could have held. Drop the record it names.
+     */
+    'removed': RemovedEnrollmentRemovedEnum;
+}
+
+export const RemovedEnrollmentRemovedEnum = {
+    True: true,
+} as const;
+
+export type RemovedEnrollmentRemovedEnum = typeof RemovedEnrollmentRemovedEnum[keyof typeof RemovedEnrollmentRemovedEnum];
+
+/**
+ * A learner no longer associated with the organization in the scope requested: off its roster and holding no enrollment under its contracts (under contract_id, no enrollment in that contract). Only the identity remains.
+ */
+export interface RemovedLearner {
+    /**
+     * The learner_id of the removed record.
+     */
+    'learner_id': string;
+    /**
+     * The organization\'s Keycloak organization UUID.
+     */
+    'organization_id': string;
+    /**
+     * Always true. Returned only with updated_since, for a record the previous sync could have held. Drop the record it names.
+     */
+    'removed': RemovedLearnerRemovedEnum;
+}
+
+export const RemovedLearnerRemovedEnum = {
+    True: true,
+} as const;
+
+export type RemovedLearnerRemovedEnum = typeof RemovedLearnerRemovedEnum[keyof typeof RemovedLearnerRemovedEnum];
 
 export interface ValidationError {
     'loc': Array<LocationInner>;
@@ -596,7 +880,7 @@ export const EnrollmentsApiAxiosParamCreator = function (configuration?: Configu
          * @param {string | null} [courserun_id] 
          * @param {Array<string>} [learner_id] Repeat for several.
          * @param {Array<CompletionStatusFilter>} [completion_status] 
-         * @param {string | null} [updated_since] Return only records changed at or after this instant.
+         * @param {string | null} [updated_since] Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
          * @param {string | null} [updated_before] Return only records changed strictly before this instant. Paired with updated_since, bounds a window for a partitioned backfill or replay.
          * @param {boolean} [include_inactive] Include deactivated enrollments (unenrolled, refunded, transferred).
          * @param {number} [limit] 
@@ -692,7 +976,7 @@ export const EnrollmentsApiFp = function(configuration?: Configuration) {
          * @param {string | null} [courserun_id] 
          * @param {Array<string>} [learner_id] Repeat for several.
          * @param {Array<CompletionStatusFilter>} [completion_status] 
-         * @param {string | null} [updated_since] Return only records changed at or after this instant.
+         * @param {string | null} [updated_since] Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
          * @param {string | null} [updated_before] Return only records changed strictly before this instant. Paired with updated_since, bounds a window for a partitioned backfill or replay.
          * @param {boolean} [include_inactive] Include deactivated enrollments (unenrolled, refunded, transferred).
          * @param {number} [limit] 
@@ -700,7 +984,7 @@ export const EnrollmentsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listEnrollments(organization_id: string, contract_id?: number | null, courserun_id?: string | null, learner_id?: Array<string>, completion_status?: Array<CompletionStatusFilter>, updated_since?: string | null, updated_before?: string | null, include_inactive?: boolean, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnerRecordsResponseEnrollment>> {
+        async listEnrollments(organization_id: string, contract_id?: number | null, courserun_id?: string | null, learner_id?: Array<string>, completion_status?: Array<CompletionStatusFilter>, updated_since?: string | null, updated_before?: string | null, include_inactive?: boolean, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnerRecordsResponseUnionEnrollmentRemovedEnrollment>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listEnrollments(organization_id, contract_id, courserun_id, learner_id, completion_status, updated_since, updated_before, include_inactive, limit, offset, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['EnrollmentsApi.listEnrollments']?.[localVarOperationServerIndex]?.url;
@@ -722,7 +1006,7 @@ export const EnrollmentsApiFactory = function (configuration?: Configuration, ba
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listEnrollments(requestParameters: EnrollmentsApiListEnrollmentsRequest, options?: RawAxiosRequestConfig): AxiosPromise<LearnerRecordsResponseEnrollment> {
+        listEnrollments(requestParameters: EnrollmentsApiListEnrollmentsRequest, options?: RawAxiosRequestConfig): AxiosPromise<LearnerRecordsResponseUnionEnrollmentRemovedEnrollment> {
             return localVarFp.listEnrollments(requestParameters.organization_id, requestParameters.contract_id, requestParameters.courserun_id, requestParameters.learner_id, requestParameters.completion_status, requestParameters.updated_since, requestParameters.updated_before, requestParameters.include_inactive, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
         },
     };
@@ -746,7 +1030,7 @@ export interface EnrollmentsApiListEnrollmentsRequest {
     readonly completion_status?: Array<CompletionStatusFilter>
 
     /**
-     * Return only records changed at or after this instant.
+     * Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
      */
     readonly updated_since?: string | null
 
@@ -794,7 +1078,7 @@ export const LearnersApiAxiosParamCreator = function (configuration?: Configurat
          * @param {string} organization_id 
          * @param {number | null} [contract_id] 
          * @param {Array<string>} [learner_id] Repeat for several.
-         * @param {string | null} [updated_since] Return only records changed at or after this instant.
+         * @param {string | null} [updated_since] Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
          * @param {string | null} [updated_before] Return only records changed strictly before this instant. Paired with updated_since, bounds a window for a partitioned backfill or replay.
          * @param {boolean} [include_inactive] Include deactivated enrollments (unenrolled, refunded, transferred).
          * @param {number} [limit] 
@@ -880,7 +1164,7 @@ export const LearnersApiFp = function(configuration?: Configuration) {
          * @param {string} organization_id 
          * @param {number | null} [contract_id] 
          * @param {Array<string>} [learner_id] Repeat for several.
-         * @param {string | null} [updated_since] Return only records changed at or after this instant.
+         * @param {string | null} [updated_since] Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
          * @param {string | null} [updated_before] Return only records changed strictly before this instant. Paired with updated_since, bounds a window for a partitioned backfill or replay.
          * @param {boolean} [include_inactive] Include deactivated enrollments (unenrolled, refunded, transferred).
          * @param {number} [limit] 
@@ -888,7 +1172,7 @@ export const LearnersApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listLearners(organization_id: string, contract_id?: number | null, learner_id?: Array<string>, updated_since?: string | null, updated_before?: string | null, include_inactive?: boolean, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnerRecordsResponseLearner>> {
+        async listLearners(organization_id: string, contract_id?: number | null, learner_id?: Array<string>, updated_since?: string | null, updated_before?: string | null, include_inactive?: boolean, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnerRecordsResponseUnionLearnerRemovedLearner>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.listLearners(organization_id, contract_id, learner_id, updated_since, updated_before, include_inactive, limit, offset, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['LearnersApi.listLearners']?.[localVarOperationServerIndex]?.url;
@@ -910,7 +1194,7 @@ export const LearnersApiFactory = function (configuration?: Configuration, baseP
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listLearners(requestParameters: LearnersApiListLearnersRequest, options?: RawAxiosRequestConfig): AxiosPromise<LearnerRecordsResponseLearner> {
+        listLearners(requestParameters: LearnersApiListLearnersRequest, options?: RawAxiosRequestConfig): AxiosPromise<LearnerRecordsResponseUnionLearnerRemovedLearner> {
             return localVarFp.listLearners(requestParameters.organization_id, requestParameters.contract_id, requestParameters.learner_id, requestParameters.updated_since, requestParameters.updated_before, requestParameters.include_inactive, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
         },
     };
@@ -930,7 +1214,7 @@ export interface LearnersApiListLearnersRequest {
     readonly learner_id?: Array<string>
 
     /**
-     * Return only records changed at or after this instant.
+     * Return only records changed at or after this instant, plus removed records. At most 90 days ago, and not before change tracking began; an older value is a 400, and the client reloads in full.
      */
     readonly updated_since?: string | null
 

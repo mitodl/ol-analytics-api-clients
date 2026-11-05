@@ -89,7 +89,7 @@ export type ConsentStatus = typeof ConsentStatus[keyof typeof ConsentStatus];
 
 
 /**
- * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / total_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``newly_certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``total_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.
+ * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / actively_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``newly_certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``actively_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.  ``total_enrolled_learners`` is the deprecated name for ``actively_enrolled_learners``, kept until clients read the new name. A policy has one primary, so the old name is a secondary contained in the new one. It always equals the primary, so its complement is 0 and it clears the floor whenever the row does: it is published with every row that is published and needs no Optional type.
  */
 export interface ContentEngagementDepth {
     /**
@@ -110,6 +110,11 @@ export interface ContentEngagementDepth {
     'courserun_title': string;
     /**
      * Learners whose enrollment in this course run is still active. When too few learners are in the group, the whole row is withheld to avoid identifying them.
+     */
+    'actively_enrolled_learners': number;
+    /**
+     * Deprecated: use actively_enrolled_learners, which this always equals.
+     * @deprecated
      */
     'total_enrolled_learners': number;
     /**
@@ -183,6 +188,11 @@ export interface ContractContentEngagementDepth {
     'courserun_title': string;
     /**
      * Learners whose enrollment in this course run is still active. When too few learners are in the group, the whole row is withheld to avoid identifying them.
+     */
+    'actively_enrolled_learners': number;
+    /**
+     * Deprecated: use actively_enrolled_learners, which this always equals.
+     * @deprecated
      */
     'total_enrolled_learners': number;
     /**
@@ -345,7 +355,7 @@ export interface ContractNeedsAttention {
     'learners_outcomes_withheld': number | null;
 }
 /**
- * mv_b2b_contract_utilization — grain: org x contract.  ``seats_consumed`` is the primary cohort. ``active_learners`` and ``certified_learners`` are secondary counts, nulled when nonzero but below the floor. ``completion_rate_pct`` is ``certified_learners`` over ``seats_consumed`` and is nulled with it. ``seat_utilization_pct`` is ``seats_consumed`` over ``seat_limit``, null when the limit is zero or null (the view divides by ``nullif(seat_limit, 0)``).  ``learners_certified`` is the deprecated name for ``certified_learners``: always equal to it and floored the same way, kept until clients read the new name.
+ * mv_b2b_contract_utilization — grain: org x contract.  ``seats_consumed`` is the primary cohort. ``actively_enrolled_learners`` and ``certified_learners`` are secondary counts, nulled when nonzero but below the floor. ``completion_rate_pct`` is ``certified_learners`` over ``seats_consumed`` and is nulled with it. ``seat_utilization_pct`` is ``seats_consumed`` over ``seat_limit``, null when the limit is zero or null (the view divides by ``nullif(seat_limit, 0)``).  ``learners_certified`` is the deprecated name for ``certified_learners``: always equal to it and floored the same way, kept until clients read the new name. ``active_learners`` is the same for ``actively_enrolled_learners``.
  */
 export interface ContractUtilization {
     /**
@@ -394,6 +404,10 @@ export interface ContractUtilization {
     'seats_consumed': number;
     /**
      * Learners on the contract whose enrollment is still active. Withheld when too few learners are in the group to report without identifying them.
+     */
+    'actively_enrolled_learners': number | null;
+    /**
+     * Deprecated: use actively_enrolled_learners, which this always equals.
      */
     'active_learners': number | null;
     /**
@@ -456,7 +470,28 @@ export interface CourseRunsResponse {
     'data': Array<CourseRun>;
 }
 /**
- * mv_b2b_enrollment_completion_funnel — grain: org x contract x course_run.  ``enrolled_learners`` is the primary cohort. ``active_rate_pct`` and ``completion_rate_pct`` are ``active_learners`` and ``certified_learners`` over ``enrolled_learners``, each nulled with its numerator.
+ * Why a manager-authorized request has nothing to read yet.  MITx Online is the source of truth for who manages an organization and which contracts it holds, and it knows about both as soon as they are created. The warehouse learns of them on its next load, so for a while a real manager can ask about an organization or contract this service has never seen. ``code`` says which, so a client can tell the manager the data is on its way instead of reporting a failure.
+ */
+export interface DataNotLoaded {
+    'code': DataNotLoadedCodeEnum;
+    'message': string;
+}
+
+export const DataNotLoadedCodeEnum = {
+    OrganizationNotLoaded: 'organization_not_loaded',
+    ContractNotLoaded: 'contract_not_loaded',
+} as const;
+
+export type DataNotLoadedCodeEnum = typeof DataNotLoadedCodeEnum[keyof typeof DataNotLoadedCodeEnum];
+
+/**
+ * The 404 body for an organization or contract with no analytics data loaded.
+ */
+export interface DataNotLoadedResponse {
+    'detail': DataNotLoaded;
+}
+/**
+ * mv_b2b_enrollment_completion_funnel — grain: org x contract x course_run.  ``enrolled_learners`` is the primary cohort. ``actively_enrolled_rate_pct`` and ``completion_rate_pct`` are ``actively_enrolled_learners`` and ``certified_learners`` over ``enrolled_learners``, each nulled with its numerator.  ``active_learners`` and ``active_rate_pct`` are the deprecated names for ``actively_enrolled_learners`` and ``actively_enrolled_rate_pct``: always equal to them and floored the same way, kept until clients read the new names. ``monthly_active_learners`` on the engagement trends counts learners who did course work, not this enrollment measure.  The complement rule withholds ``actively_enrolled_learners`` when 1 to 4 learners have unenrolled, and that hides nothing from an organization\'s managers. The content engagement endpoint publishes the same count of active enrollments as ``actively_enrolled_learners``, so the difference from ``enrolled_learners`` gives the withheld complement back. ``/learner-progress`` with ``include_inactive=true`` already lists ``enrollment_is_active`` per learner to the same callers, with no floor and no consent check, so guarding content engagement would withhold its rows to protect a figure listed one endpoint over. That difference is accepted. The rule still matters for ``passing_learners`` and ``certified_learners``: those outcomes are consent-gated per learner, so the learner endpoints don\'t give their complements.
  */
 export interface EnrollmentCompletionFunnel {
     /**
@@ -498,6 +533,10 @@ export interface EnrollmentCompletionFunnel {
     /**
      * Enrolled learners whose enrollment is still active. Withheld when too few learners are in the group to report without identifying them.
      */
+    'actively_enrolled_learners': number | null;
+    /**
+     * Deprecated: use actively_enrolled_learners, which this always equals.
+     */
     'active_learners': number | null;
     /**
      * Enrolled learners with a passing grade. Withheld when too few learners are in the group to report without identifying them.
@@ -509,6 +548,10 @@ export interface EnrollmentCompletionFunnel {
     'certified_learners': number | null;
     /**
      * Percentage of enrolled learners whose enrollment is still active. Withheld when the learner count it is based on is withheld.
+     */
+    'actively_enrolled_rate_pct': number | null;
+    /**
+     * Deprecated: use actively_enrolled_rate_pct, which this always equals.
      */
     'active_rate_pct': number | null;
     /**
@@ -776,7 +819,7 @@ export interface LearnerWithEnrollments {
     'enrollments': Array<LearnerEnrollment>;
 }
 /**
- * The org envelope (``organization_id``, ``as_of``, ``total_count``, ``data``), paged by learner. ``total_count`` counts learners, not enrollments, and the envelope carries no other counts.
+ * The org envelope (``organization_id``, ``as_of``, ``total_count``, ``data``), paged by learner, plus ``outcomes_withheld_count``. Both counts count learners, not enrollments.
  */
 export interface LearnersResponse {
     /**
@@ -792,6 +835,10 @@ export interface LearnersResponse {
      */
     'total_count': number;
     /**
+     * How many of those learners haven\'t agreed to share their progress. Always 0 when filtering exclusively by known completion statuses (without unknown), or by needs attention either way, because withheld enrollments can\'t match those filters.
+     */
+    'outcomes_withheld_count': number;
+    /**
      * This page of learners.
      */
     'data': Array<LearnerWithEnrollments>;
@@ -799,7 +846,7 @@ export interface LearnersResponse {
 export interface LocationInner {
 }
 /**
- * mv_b2b_mit_admin_contract_health — grain: org x contract (MIT admin only).  Floored like ``ContractUtilization``. ``health_status`` is computed in the view from ``b2b_contract_is_active``, ``seat_utilization_pct`` and ``b2b_contract_end_date``.
+ * mv_b2b_mit_admin_contract_health — grain: org x contract (MIT admin only).  Floored like ``ContractUtilization``. ``health_status`` is computed in the view from ``b2b_contract_is_active``, ``seat_utilization_pct`` and ``b2b_contract_end_date``, as of the view\'s last refresh. The endpoint turns it to at_risk per request from ``at_risk_since``, the view\'s threshold date. ``active_learners`` is the deprecated name for ``actively_enrolled_learners``: always equal to it and floored the same way, kept until clients read the new name.
  */
 export interface MitAdminContractHealth {
     /**
@@ -848,6 +895,10 @@ export interface MitAdminContractHealth {
     'seats_consumed': number;
     /**
      * Learners on the contract whose enrollment is still active. Withheld when too few learners are in the group to report without identifying them.
+     */
+    'actively_enrolled_learners': number | null;
+    /**
+     * Deprecated: use actively_enrolled_learners, which this always equals.
      */
     'active_learners': number | null;
     /**
