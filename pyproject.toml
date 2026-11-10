@@ -1,8 +1,12 @@
 # Only here for bumpver: the release pipeline in ol-infrastructure runs
 # `bumpver update` against this file before committing a generated client.
 [tool.bumpver]
-current_version = "2026.11.5"
-version_pattern = "YYYY.MM.DD[-INC0]"
+current_version = "2026.1105.0"
+# 2026.1109.0, then 2026.1109.1 for a second client the same day. Month and
+# zero-padded day share the minor so the patch can count the day's clients:
+# npm orders by semver, and the old YYYY.MM.DD[-INC0] made a second same-day
+# client (2026.11.9-1) a prerelease that sorted below the first.
+version_pattern = "YYYY.MM0D.INC0"
 commit = false
 tag = false
 push = false
