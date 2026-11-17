@@ -13,9 +13,19 @@ Generated paths already carry the tenant's mount prefix (e.g. `/api/v1/analytics
 
 ## Releases
 
-Clients are generated and published by the `ol-analytics-api-api-client` pipeline, defined in [ol-infrastructure](https://github.com/mitodl/ol-infrastructure) (`src/ol_concourse/pipelines/libraries/api_clients_pipeline.py`). It runs on every ol-analytics-api release tag (bare CalVer, e.g. `2026.10.20.1`), not on spec changes, so a release with no spec change still publishes a new version. Both packages share the repo-root `VERSION`, which the pipeline bumps with `bumpver` before committing the regenerated sources.
+Clients are generated and published by the `ol-analytics-api-api-client` pipeline, defined in [ol-infrastructure](https://github.com/mitodl/ol-infrastructure) (`src/ol_concourse/pipelines/libraries/api_clients_pipeline.py`). It runs when an ol-analytics-api release reaches Production, on the release's `production/<version>` tag, so a published version is one that is ready to use, and a release that is cut and then abandoned publishes nothing. It publishes only when the regenerated client differs from the one committed here; a release that leaves the client as it was publishes nothing.
 
-Each generator config in `config/` maps one spec to one package. A new tenant needs a config here, a package directory under `src/typescript/` (with its sources committed, since the pipeline only stages files it already tracks), an entry in `pyproject.toml`'s `[tool.bumpver.file_patterns]`, and the package name added to `client_repo_subpath` in ol-infrastructure's `PIPELINE_CONFIGS`.
+The client version is the release's, not the date it was published. Both packages share the repo-root `VERSION`, which the pipeline sets from the release tag, together with each `package.json`, before committing the regenerated sources. The minor is the month followed by the two-digit day:
+
+| Release tag    | Client version |
+| -------------- | -------------- |
+| `2026.11.16.1` | `2026.1116.1`  |
+| `2026.11.16.2` | `2026.1116.2`  |
+| `2027.1.5.1`   | `2027.105.1`   |
+
+These sort above the `YYYY.M.D` versions published before (`2026.11.12` < `2026.1116.1`). A release that does not change the client has no client version, so the published versions skip releases.
+
+Each generator config in `config/` maps one spec to one package. A new tenant needs a config here, a package directory under `src/typescript/` (with its sources committed, since the pipeline only stages files it already tracks), and the package name added to `client_repo_subpath` in ol-infrastructure's `PIPELINE_CONFIGS`.
 
 ## Development
 
