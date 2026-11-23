@@ -89,7 +89,7 @@ export type ConsentStatus = typeof ConsentStatus[keyof typeof ConsentStatus];
 
 
 /**
- * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / actively_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``newly_certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``actively_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.  ``total_enrolled_learners`` is the deprecated name for ``actively_enrolled_learners``, kept until clients read the new name. A policy has one primary, so the old name is a secondary contained in the new one. It always equals the primary, so its complement is 0 and it clears the floor whenever the row does: it is published with every row that is published and needs no Optional type.
+ * mv_b2b_content_engagement_depth — grain: org x course_run (all-time).  The chatbot columns are exact: ``total_chatbot_interactions`` sums over, and ``chatbot_adoption_pct`` divides by, ``chatbot_users`` — which this view does emit, so both are correctly floored. ``engagement_rate_pct`` is ``engaged_learners / actively_enrolled_learners``, also correct.  The video and problem columns are floored through the cohorts the view now publishes (ol-data-platform PR #2520): ``total_videos_watched`` is summed over ``video_watchers`` and ``total_problems_attempted`` over ``problem_attempters``, each a strict subset of ``engaged_learners`` because watching a video or attempting a problem is tracked activity. ``chatbot_users`` is one too. That is a property of these particular cohorts, not a general rule: a certified learner need not be engaged, and see ``MonthlyEngagementTrend``, where neither ``enrolling_learners`` nor ``newly_certified_learners`` is a subset of ``monthly_active_learners``.  The ``avg_*_per_engaged_learner`` columns are derived from *two* cohorts, which is why each names both. The denominator is ``engaged_learners`` — that is what the dbt SQL divides by, so the naming is now accurate — but the numerator is the activity SUM, contributed by only the narrower cohort. Mapping the average to its denominator alone would leave the numerator recoverable: an unsuppressed average multiplied by a published ``engaged_learners`` yields the suppressed total exactly, and when the contributing cohort is a single learner that total *is* that learner\'s value. Naming both cohorts nulls the average whenever either is sub-floor.  ``certificates_earned`` counts learners holding an unrevoked certificate for the run, whether or not their enrollment is still active (ol-data-platform PR #2913). So it is not a subset of ``actively_enrolled_learners``: a learner who certified and then unenrolled is counted here and not there. It is declared contained in it anyway, so besides its own floor it is withheld when the gap (enrolled minus certified) is below the floor and not 0, including below zero. That gap is the uncertified enrolled learners minus the unenrolled certificate holders, never more than the true one, so the declaration over-suppresses on runs with unenrolled holders. A gap of exactly 0 is published even though it can hide as many uncertified enrolled learners as there are unenrolled holders.  Each learner counts once per run at this grain. Since ol-data-platform PR #2982 every row of the progress fact carries the one contract the learner enrolled under, so a run offered under two contracts does not double the SUM.  That attribution also makes the contract rows for a run sum to its org row, so the org endpoint guards what the contract endpoint withholds (see ``ContractContentEngagementDepth``). A run with a contract row withheld whole is withheld whole here too, and a count a contract row withholds is withheld here with the totals and rates computed over it.  ``total_enrolled_learners`` is the deprecated name for ``actively_enrolled_learners``, kept until clients read the new name. A policy has one primary, so the old name is a secondary contained in the new one. It always equals the primary, so its complement is 0 and it clears the floor whenever the row does: it is published with every row that is published and needs no Optional type.
  */
 export interface ContentEngagementDepth {
     /**
@@ -167,7 +167,7 @@ export interface ContentEngagementDepth {
     'certificates_earned': number | null;
 }
 /**
- * mv_b2b_contract_content_engagement_depth — grain: org x contract x run.  The contract-scoped sibling of ``ContentEngagementDepth``, inherited for the same reason as ``ContractMonthlyEngagementTrend``.  Unlike the trend view, these rows ARE a strict partition of the org-level view: a course run belongs to exactly one contract, so naming the contract labels a row rather than splitting it, and every count here equals its org-level counterpart for the same course run.  That equality is why this pair needs no cross-grain guard, where the trend pair does. Nothing is aggregated away going from contract grain to org grain, so there is no remainder to subtract: a course run\'s org row and its contract row hold the same numbers, the floor makes the same call on both, and a caller reading one learns nothing the other withholds.
+ * mv_b2b_contract_content_engagement_depth — grain: org x contract x run.  The contract-scoped sibling of ``ContentEngagementDepth``, inherited for the same reason as ``ContractMonthlyEngagementTrend``.  Unlike the trend view, these rows partition the org-level view\'s rows. Since ol-data-platform PR #2982 each learner\'s course run is attributed to the one contract they enrolled under. A run offered under one of an org\'s contracts is only labelled, and its counts equal its org-level ones. A run offered under two is split, and its contract rows sum to the org row, learner counts included.  So the pair needs a cross-grain guard, as the trend pair does: a contract row withheld here is recoverable as the org row minus the published contract rows for the run, and the org row\'s rates can pin it too. The org endpoint scans this view and drops the org row for a run whose contract row is withheld whole, and blanks any count a published contract row withholds, with the totals and rates computed over it (see ``routers.organizations._FinerGrain``). For a run under one contract the two rows hold the same numbers, the floor makes the same call on both, and the guard changes nothing.
  */
 export interface ContractContentEngagementDepth {
     /**
@@ -428,6 +428,19 @@ export interface ContractUtilization {
     'completion_rate_pct': number | null;
 }
 /**
+ * One course under the contract, for the Learners page\'s columns.
+ */
+export interface Course {
+    /**
+     * The course\'s ID, e.g. course-v1:MITxT+14.310x. Its runs share it.
+     */
+    'course_readable_id': string;
+    /**
+     * The course\'s title, as the learner\'s dashboard shows it.
+     */
+    'course_title': string;
+}
+/**
  * One course run under the contract, for the learner-progress module filter.
  */
 export interface CourseRun {
@@ -468,6 +481,27 @@ export interface CourseRunsResponse {
      * This page of course runs.
      */
     'data': Array<CourseRun>;
+}
+/**
+ * The org envelope (``organization_id``, ``as_of``, ``total_count``, ``data``), matching ``CourseRunsResponse``\'s shape.
+ */
+export interface CoursesResponse {
+    /**
+     * The organization\'s ID.
+     */
+    'organization_id': string;
+    /**
+     * When the data was last updated. Empty before the first update.
+     */
+    'as_of': string | null;
+    /**
+     * Courses under the contract, across all pages.
+     */
+    'total_count': number;
+    /**
+     * This page of courses, in the order the learner\'s dashboard lists them: by program, then by each course\'s place in its program.
+     */
+    'data': Array<Course>;
 }
 /**
  * Why a manager-authorized request has nothing to read yet.  MITx Online is the source of truth for who manages an organization and which contracts it holds, and it knows about both as soon as they are created. The warehouse learns of them on its next load, so for a while a real manager can ask about an organization or contract this service has never seen. ``code`` says which, so a client can tell the manager the data is on its way instead of reporting a failure.
@@ -563,7 +597,7 @@ export interface HTTPValidationError {
     'detail'?: Array<ValidationError>;
 }
 /**
- * One enrollment in one course run under the contract.  Holds the ``_gate_outcomes`` validator, so every model built from it gates outcomes the same way.
+ * A learner\'s enrollment in one course under the contract, in the run their own dashboard shows.
  */
 export interface LearnerEnrollment {
     /**
@@ -654,6 +688,14 @@ export interface LearnerEnrollment {
      * Whether this learner may need a nudge: they never started the course, or they are still working through it and their last recorded activity was at least 30 days ago. False while they are passing or hold an unrevoked certificate, since going quiet after finishing is expected. Hidden if the learner hasn\'t agreed to share their progress.
      */
     'needs_attention': boolean | null;
+    /**
+     * The course\'s ID, e.g. course-v1:MITxT+14.310x. Its runs share it.
+     */
+    'course_readable_id': string;
+    /**
+     * The course\'s title, as the learner\'s dashboard shows it.
+     */
+    'course_title': string;
 }
 
 
@@ -797,8 +839,21 @@ export interface LearnerProgressResponse {
      */
     'data': Array<LearnerProgress>;
 }
+
+export const LearnerStatusFilter = {
+    NotStarted: 'not_started',
+    InProgress: 'in_progress',
+    Passed: 'passed',
+    Certified: 'certified',
+    Unknown: 'unknown',
+    NotEnrolled: 'not_enrolled',
+} as const;
+
+export type LearnerStatusFilter = typeof LearnerStatusFilter[keyof typeof LearnerStatusFilter];
+
+
 /**
- * One learner under the contract, with all of their active enrollments.
+ * One learner under the contract, with one enrollment per course.
  */
 export interface LearnerWithEnrollments {
     /**
@@ -814,7 +869,7 @@ export interface LearnerWithEnrollments {
      */
     'full_name': string | null;
     /**
-     * Every course the learner is enrolled in under the contract, including the ones that didn\'t match the filters.
+     * One per course the learner is enrolled in under the contract, including the ones that didn\'t match the filters. When they have more than one run of a course, it\'s the one their own dashboard shows: a run they earned a certificate in, else the run open now, else the next to start, else the one that started most recently. Empty if they haven\'t enrolled in any yet.
      */
     'enrollments': Array<LearnerEnrollment>;
 }
@@ -831,11 +886,11 @@ export interface LearnersResponse {
      */
     'as_of': string | null;
     /**
-     * Learners with at least one enrollment that matches the filters, across all pages.
+     * Learners on the contract who match the filters, across all pages.
      */
     'total_count': number;
     /**
-     * How many of those learners haven\'t agreed to share their progress. Always 0 when filtering exclusively by known completion statuses (without unknown), or by needs attention either way, because withheld enrollments can\'t match those filters.
+     * How many of those learners haven\'t agreed to share their progress. Always 0, because this endpoint doesn\'t list them.
      */
     'outcomes_withheld_count': number;
     /**
@@ -1793,20 +1848,69 @@ export const LearnersApiAxiosParamCreator = function (configuration?: Configurat
             };
         },
         /**
-         * A learner is listed when at least one of their active enrollments matches every filter at once. Their other active enrollments are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single enrollment.
-         * @summary Each learner under the contract with all of their enrollments, paged by learner
+         * 
+         * @summary Courses under the contract, in the learner dashboard\'s order, for the Learners page
          * @param {string} organization_id 
          * @param {number} contract_id 
-         * @param {string | null} [search] Case-insensitive match on email or name.
-         * @param {Array<CompletionStatusFilter>} [completion_status] Repeat for several. &#x60;unknown&#x60; selects rows with withheld outcomes.
-         * @param {Array<string>} [courserun_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
-         * @param {boolean | null} [needs_attention] Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t. Rows with withheld outcomes match neither, so omit this to see them.
          * @param {number} [limit] 
          * @param {number} [offset] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        learnersList: async (organization_id: string, contract_id: number, search?: string | null, completion_status?: Array<CompletionStatusFilter>, courserun_readable_id?: Array<string>, needs_attention?: boolean | null, limit?: number, offset?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        learnersCoursesRetrieve: async (organization_id: string, contract_id: number, limit?: number, offset?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'organization_id' is not null or undefined
+            assertParamExists('learnersCoursesRetrieve', 'organization_id', organization_id)
+            // verify required parameter 'contract_id' is not null or undefined
+            assertParamExists('learnersCoursesRetrieve', 'contract_id', contract_id)
+            const localVarPath = `/api/v1/analytics/organizations/{organization_id}/contracts/{contract_id}/courses`
+                .replace('{organization_id}', encodeURIComponent(String(organization_id)))
+                .replace('{contract_id}', encodeURIComponent(String(contract_id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+            if (offset !== undefined) {
+                localVarQueryParameter['offset'] = offset;
+            }
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * `enrollments` has one entry per course in `/courses`: when a learner has active enrollments in more than one run of a course, the run their own dashboard shows, and every field and filter reads that run. A run of a course `/courses` doesn\'t list has no entry. With no filter, every current member of the contract is listed, including those with no active enrollment, whose `enrollments` is empty. A member who enrolled but hasn\'t agreed to share their progress isn\'t listed, so `unknown` matches nobody here. Otherwise a learner is listed when at least one of their entries matches every filter at once, or, for `not_enrolled`, when they have no entry for at least one of the selected courses. Their other entries are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `course_readable_id`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single entry. `courserun_readable_id` matches the run an entry shows, and selects that run\'s course for `not_enrolled`. `needs_attention` never matches `not_enrolled`, which has no enrollment to judge.
+         * @summary Each learner under the contract with one enrollment per course, paged by learner
+         * @param {string} organization_id 
+         * @param {number} contract_id 
+         * @param {string | null} [search] Case-insensitive match on email or name.
+         * @param {Array<LearnerStatusFilter>} [completion_status] Repeat for several. &#x60;unknown&#x60; matches nobody, because learners with withheld outcomes aren\&#39;t listed. &#x60;not_enrolled&#x60; selects learners missing an enrollment in at least one selected module, or in at least one of the contract\&#39;s modules when none is selected.
+         * @param {Array<string>} [course_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
+         * @param {Array<string>} [courserun_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
+         * @param {boolean | null} [needs_attention] Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t.
+         * @param {number} [limit] 
+         * @param {number} [offset] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        learnersList: async (organization_id: string, contract_id: number, search?: string | null, completion_status?: Array<LearnerStatusFilter>, course_readable_id?: Array<string>, courserun_readable_id?: Array<string>, needs_attention?: boolean | null, limit?: number, offset?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'organization_id' is not null or undefined
             assertParamExists('learnersList', 'organization_id', organization_id)
             // verify required parameter 'contract_id' is not null or undefined
@@ -1831,6 +1935,10 @@ export const LearnersApiAxiosParamCreator = function (configuration?: Configurat
 
             if (completion_status) {
                 localVarQueryParameter['completion_status'] = completion_status;
+            }
+
+            if (course_readable_id) {
+                localVarQueryParameter['course_readable_id'] = course_readable_id;
             }
 
             if (courserun_readable_id) {
@@ -1969,21 +2077,38 @@ export const LearnersApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * A learner is listed when at least one of their active enrollments matches every filter at once. Their other active enrollments are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single enrollment.
-         * @summary Each learner under the contract with all of their enrollments, paged by learner
+         * 
+         * @summary Courses under the contract, in the learner dashboard\'s order, for the Learners page
          * @param {string} organization_id 
          * @param {number} contract_id 
-         * @param {string | null} [search] Case-insensitive match on email or name.
-         * @param {Array<CompletionStatusFilter>} [completion_status] Repeat for several. &#x60;unknown&#x60; selects rows with withheld outcomes.
-         * @param {Array<string>} [courserun_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
-         * @param {boolean | null} [needs_attention] Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t. Rows with withheld outcomes match neither, so omit this to see them.
          * @param {number} [limit] 
          * @param {number} [offset] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async learnersList(organization_id: string, contract_id: number, search?: string | null, completion_status?: Array<CompletionStatusFilter>, courserun_readable_id?: Array<string>, needs_attention?: boolean | null, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnersResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.learnersList(organization_id, contract_id, search, completion_status, courserun_readable_id, needs_attention, limit, offset, options);
+        async learnersCoursesRetrieve(organization_id: string, contract_id: number, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CoursesResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.learnersCoursesRetrieve(organization_id, contract_id, limit, offset, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LearnersApi.learnersCoursesRetrieve']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * `enrollments` has one entry per course in `/courses`: when a learner has active enrollments in more than one run of a course, the run their own dashboard shows, and every field and filter reads that run. A run of a course `/courses` doesn\'t list has no entry. With no filter, every current member of the contract is listed, including those with no active enrollment, whose `enrollments` is empty. A member who enrolled but hasn\'t agreed to share their progress isn\'t listed, so `unknown` matches nobody here. Otherwise a learner is listed when at least one of their entries matches every filter at once, or, for `not_enrolled`, when they have no entry for at least one of the selected courses. Their other entries are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `course_readable_id`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single entry. `courserun_readable_id` matches the run an entry shows, and selects that run\'s course for `not_enrolled`. `needs_attention` never matches `not_enrolled`, which has no enrollment to judge.
+         * @summary Each learner under the contract with one enrollment per course, paged by learner
+         * @param {string} organization_id 
+         * @param {number} contract_id 
+         * @param {string | null} [search] Case-insensitive match on email or name.
+         * @param {Array<LearnerStatusFilter>} [completion_status] Repeat for several. &#x60;unknown&#x60; matches nobody, because learners with withheld outcomes aren\&#39;t listed. &#x60;not_enrolled&#x60; selects learners missing an enrollment in at least one selected module, or in at least one of the contract\&#39;s modules when none is selected.
+         * @param {Array<string>} [course_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
+         * @param {Array<string>} [courserun_readable_id] Repeat for several modules; they OR together and AND with the other filters. At most 50.
+         * @param {boolean | null} [needs_attention] Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t.
+         * @param {number} [limit] 
+         * @param {number} [offset] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async learnersList(organization_id: string, contract_id: number, search?: string | null, completion_status?: Array<LearnerStatusFilter>, course_readable_id?: Array<string>, courserun_readable_id?: Array<string>, needs_attention?: boolean | null, limit?: number, offset?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<LearnersResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.learnersList(organization_id, contract_id, search, completion_status, course_readable_id, courserun_readable_id, needs_attention, limit, offset, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['LearnersApi.learnersList']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2031,14 +2156,24 @@ export const LearnersApiFactory = function (configuration?: Configuration, baseP
             return localVarFp.learnersCourseRunsRetrieve(requestParameters.organization_id, requestParameters.contract_id, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
         },
         /**
-         * A learner is listed when at least one of their active enrollments matches every filter at once. Their other active enrollments are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single enrollment.
-         * @summary Each learner under the contract with all of their enrollments, paged by learner
+         * 
+         * @summary Courses under the contract, in the learner dashboard\'s order, for the Learners page
+         * @param {LearnersApiLearnersCoursesRetrieveRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        learnersCoursesRetrieve(requestParameters: LearnersApiLearnersCoursesRetrieveRequest, options?: RawAxiosRequestConfig): AxiosPromise<CoursesResponse> {
+            return localVarFp.learnersCoursesRetrieve(requestParameters.organization_id, requestParameters.contract_id, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * `enrollments` has one entry per course in `/courses`: when a learner has active enrollments in more than one run of a course, the run their own dashboard shows, and every field and filter reads that run. A run of a course `/courses` doesn\'t list has no entry. With no filter, every current member of the contract is listed, including those with no active enrollment, whose `enrollments` is empty. A member who enrolled but hasn\'t agreed to share their progress isn\'t listed, so `unknown` matches nobody here. Otherwise a learner is listed when at least one of their entries matches every filter at once, or, for `not_enrolled`, when they have no entry for at least one of the selected courses. Their other entries are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `course_readable_id`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single entry. `courserun_readable_id` matches the run an entry shows, and selects that run\'s course for `not_enrolled`. `needs_attention` never matches `not_enrolled`, which has no enrollment to judge.
+         * @summary Each learner under the contract with one enrollment per course, paged by learner
          * @param {LearnersApiLearnersListRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         learnersList(requestParameters: LearnersApiLearnersListRequest, options?: RawAxiosRequestConfig): AxiosPromise<LearnersResponse> {
-            return localVarFp.learnersList(requestParameters.organization_id, requestParameters.contract_id, requestParameters.search, requestParameters.completion_status, requestParameters.courserun_readable_id, requestParameters.needs_attention, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
+            return localVarFp.learnersList(requestParameters.organization_id, requestParameters.contract_id, requestParameters.search, requestParameters.completion_status, requestParameters.course_readable_id, requestParameters.courserun_readable_id, requestParameters.needs_attention, requestParameters.limit, requestParameters.offset, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2067,6 +2202,19 @@ export interface LearnersApiLearnersCourseRunsRetrieveRequest {
 }
 
 /**
+ * Request parameters for learnersCoursesRetrieve operation in LearnersApi.
+ */
+export interface LearnersApiLearnersCoursesRetrieveRequest {
+    readonly organization_id: string
+
+    readonly contract_id: number
+
+    readonly limit?: number
+
+    readonly offset?: number
+}
+
+/**
  * Request parameters for learnersList operation in LearnersApi.
  */
 export interface LearnersApiLearnersListRequest {
@@ -2080,9 +2228,14 @@ export interface LearnersApiLearnersListRequest {
     readonly search?: string | null
 
     /**
-     * Repeat for several. &#x60;unknown&#x60; selects rows with withheld outcomes.
+     * Repeat for several. &#x60;unknown&#x60; matches nobody, because learners with withheld outcomes aren\&#39;t listed. &#x60;not_enrolled&#x60; selects learners missing an enrollment in at least one selected module, or in at least one of the contract\&#39;s modules when none is selected.
      */
-    readonly completion_status?: Array<CompletionStatusFilter>
+    readonly completion_status?: Array<LearnerStatusFilter>
+
+    /**
+     * Repeat for several modules; they OR together and AND with the other filters. At most 50.
+     */
+    readonly course_readable_id?: Array<string>
 
     /**
      * Repeat for several modules; they OR together and AND with the other filters. At most 50.
@@ -2090,7 +2243,7 @@ export interface LearnersApiLearnersListRequest {
     readonly courserun_readable_id?: Array<string>
 
     /**
-     * Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t. Rows with withheld outcomes match neither, so omit this to see them.
+     * Keep only learners with an enrollment that needs attention, or with one that doesn\&#39;t.
      */
     readonly needs_attention?: boolean | null
 
@@ -2157,14 +2310,25 @@ export class LearnersApi extends BaseAPI {
     }
 
     /**
-     * A learner is listed when at least one of their active enrollments matches every filter at once. Their other active enrollments are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single enrollment.
-     * @summary Each learner under the contract with all of their enrollments, paged by learner
+     * 
+     * @summary Courses under the contract, in the learner dashboard\'s order, for the Learners page
+     * @param {LearnersApiLearnersCoursesRetrieveRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public learnersCoursesRetrieve(requestParameters: LearnersApiLearnersCoursesRetrieveRequest, options?: RawAxiosRequestConfig) {
+        return LearnersApiFp(this.configuration).learnersCoursesRetrieve(requestParameters.organization_id, requestParameters.contract_id, requestParameters.limit, requestParameters.offset, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * `enrollments` has one entry per course in `/courses`: when a learner has active enrollments in more than one run of a course, the run their own dashboard shows, and every field and filter reads that run. A run of a course `/courses` doesn\'t list has no entry. With no filter, every current member of the contract is listed, including those with no active enrollment, whose `enrollments` is empty. A member who enrolled but hasn\'t agreed to share their progress isn\'t listed, so `unknown` matches nobody here. Otherwise a learner is listed when at least one of their entries matches every filter at once, or, for `not_enrolled`, when they have no entry for at least one of the selected courses. Their other entries are returned too, whether or not they match. `limit` and `offset` count learners, not enrollments. `completion_status`, `course_readable_id`, `courserun_readable_id` and `needs_attention` narrow together: several values of one filter OR, and different filters AND on a single entry. `courserun_readable_id` matches the run an entry shows, and selects that run\'s course for `not_enrolled`. `needs_attention` never matches `not_enrolled`, which has no enrollment to judge.
+     * @summary Each learner under the contract with one enrollment per course, paged by learner
      * @param {LearnersApiLearnersListRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public learnersList(requestParameters: LearnersApiLearnersListRequest, options?: RawAxiosRequestConfig) {
-        return LearnersApiFp(this.configuration).learnersList(requestParameters.organization_id, requestParameters.contract_id, requestParameters.search, requestParameters.completion_status, requestParameters.courserun_readable_id, requestParameters.needs_attention, requestParameters.limit, requestParameters.offset, options).then((request) => request(this.axios, this.basePath));
+        return LearnersApiFp(this.configuration).learnersList(requestParameters.organization_id, requestParameters.contract_id, requestParameters.search, requestParameters.completion_status, requestParameters.course_readable_id, requestParameters.courserun_readable_id, requestParameters.needs_attention, requestParameters.limit, requestParameters.offset, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
