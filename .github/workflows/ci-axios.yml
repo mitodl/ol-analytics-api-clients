@@ -3,12 +3,12 @@ name: CI - Axios TypeScript Packages
 on:
   push:
     branches: [main]
-    paths:
-      - "src/typescript/**"
+  # Every PR, not just ones touching the packages: ci-gate below is the check to require,
+  # and a path-filtered required check never reports.
   pull_request:
     branches: [main]
-    paths:
-      - "src/typescript/**"
+
+permissions: {}
 
 jobs:
   test-axios-package:
@@ -44,3 +44,28 @@ jobs:
       - name: Run pack dry-run
         working-directory: src/typescript/${{ matrix.package }}
         run: yarn pack --dry-run
+
+  # The one check to require: the matrix above can change without editing the ruleset.
+  ci-gate:
+    name: ci-gate
+    needs: [test-axios-package]
+    # Without this the gate is skipped when a dependency fails, and GitHub treats a
+    # skipped required job as successful.
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Evaluate CI result
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          failed=$(echo "$NEEDS" | jq -r '
+            to_entries[]
+            | select(.value.result != "success" and .value.result != "skipped")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::CI did not succeed: $(echo "$failed" | paste -sd, -)"
+            exit 1
+          fi
