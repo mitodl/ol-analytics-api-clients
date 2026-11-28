@@ -31,7 +31,7 @@ jobs:
       - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
         with:
           install-only: true # also restores and saves the prek hook cache
-          prek-version: "v0.5.10"
+          prek-version: "v0.5.11"
       # ADAPT: toolchains for local hooks go here, installed from lockfiles or exact pins.
       # See the playbook's "Toolchains" section (Node, packer, the project environment).
       - name: Tree is clean before hooks run
